@@ -2,8 +2,13 @@ use crate::{config::Config, run_command};
 use std::{fs, io::Write, path::PathBuf, process::Command};
 
 /// Prefix applied to all BoringSSL symbols so they don't collide with OpenSSL.
-///
-const SYMBOL_PREFIX: &str = "BSSL";
+/// Uses the crate version to generate a dynamic prefix.
+const SYMBOL_PREFIX: &str = concat!(
+    "BSSL_",
+    env!("CARGO_PKG_VERSION_MAJOR"), "_",
+    env!("CARGO_PKG_VERSION_MINOR"), "_",
+    env!("CARGO_PKG_VERSION_PATCH"),
+);
 
 /// Bindgen callback that rewrites link names to use the prefixed symbol.
 ///
