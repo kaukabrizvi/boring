@@ -545,8 +545,8 @@ fn built_boring_source_path(config: &Config) -> &PathBuf {
                 .define("FIPS", "1");
         }
 
-        // We must enable Position Independent Code to ensure that the 
-        // resulting prefixed symbols remain compatible with the relocatable 
+        // We must enable Position Independent Code to ensure that the
+        // resulting prefixed symbols remain compatible with the relocatable
         // nature of the final Rust test binaries to prevent linker errors
         if config.features.prefix_symbols {
             cfg.define("CMAKE_POSITION_INDEPENDENT_CODE", "ON");

@@ -5,8 +5,10 @@ use std::{fs, io::Write, path::PathBuf, process::Command};
 /// Uses the crate version to generate a dynamic prefix.
 const SYMBOL_PREFIX: &str = concat!(
     "BSSL_",
-    env!("CARGO_PKG_VERSION_MAJOR"), "_",
-    env!("CARGO_PKG_VERSION_MINOR"), "_",
+    env!("CARGO_PKG_VERSION_MAJOR"),
+    "_",
+    env!("CARGO_PKG_VERSION_MINOR"),
+    "_",
     env!("CARGO_PKG_VERSION_PATCH"),
 );
 
