@@ -38,6 +38,8 @@ rpk = ["boring-sys/rpk"]
 # feature set can be provided by setting `BORING_BSSL{,_FIPS}_SOURCE_PATH` and
 # `BORING_BSSL{,_FIPS}_ASSUME_PATCHED`.
 underscore-wildcards = ["boring-sys/underscore-wildcards"]
+# Enable symbol prefixing in the underlying BoringSSL build (for s2n tests).
+prefix-symbols = ["boring-sys/prefix-symbols"]
 
 [dependencies]
 bitflags = { workspace = true }
