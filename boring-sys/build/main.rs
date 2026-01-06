@@ -137,7 +137,8 @@ fn get_boringssl_source_path(config: &Config) -> &PathBuf {
         }
 
         let _ = fs::remove_dir_all(&src_path);
-        fs_extra::dir::copy(submodule_path, &config.out_dir, &Default::default()).unwrap();
+        fs_extra::dir::copy(submodule_path, &config.out_dir, &Default::default())
+            .expect("out dir copy");
 
         // NOTE: .git can be both file and dir, depening on whether it was copied from a submodule
         // or created by the patches code.
@@ -372,31 +373,23 @@ fn get_extra_clang_args_for_bindgen(config: &Config) -> Vec<String> {
     let mut params = Vec::new();
 
     // Add platform-specific parameters.
-    #[allow(clippy::single_match)]
     match &*config.target_os {
         "ios" | "macos" => {
             // When cross-compiling for Apple targets, tell bindgen to use SDK sysroot,
             // and *don't* use system headers of the host macOS.
             let sdk = get_apple_sdk_name(config);
-            let output = std::process::Command::new("xcrun")
-                .args(["--show-sdk-path", "--sdk", sdk])
-                .output()
-                .unwrap();
-            if !output.status.success() {
-                if let Some(exit_code) = output.status.code() {
-                    println!("cargo:warning=xcrun failed: exit code {exit_code}");
-                } else {
-                    println!("cargo:warning=xcrun failed: killed");
+            match run_command(Command::new("xcrun").args(["--show-sdk-path", "--sdk", sdk])) {
+                Ok(output) => {
+                    let sysroot = std::str::from_utf8(&output.stdout).expect("xcrun output");
+                    params.push("-isysroot".to_string());
+                    // There is typically a newline at the end which confuses clang.
+                    params.push(sysroot.trim_end().to_string());
                 }
-                std::io::stderr().write_all(&output.stderr).unwrap();
-                // Uh... let's try anyway, I guess?
-                return params;
+                Err(e) => {
+                    println!("cargo:warning={e}");
+                    // Uh... let's try anyway, I guess?
+                }
             }
-            let mut sysroot = String::from_utf8(output.stdout).unwrap();
-            // There is typically a newline at the end which confuses clang.
-            sysroot.truncate(sysroot.trim_end().len());
-            params.push("-isysroot".to_string());
-            params.push(sysroot);
         }
         "android" => {
             let mut android_sysroot = config
@@ -407,20 +400,18 @@ fn get_extra_clang_args_for_bindgen(config: &Config) -> Vec<String> {
 
             android_sysroot.extend(["toolchains", "llvm", "prebuilt"]);
 
-            let toolchain = match pick_best_android_ndk_toolchain(&android_sysroot) {
-                Ok(toolchain) => toolchain,
-                Err(e) => {
-                    println!(
-                        "cargo:warning=failed to find prebuilt Android NDK toolchain for bindgen: {e}"
-                    );
-                    // Uh... let's try anyway, I guess?
-                    return params;
+            match pick_best_android_ndk_toolchain(&android_sysroot) {
+                Ok(toolchain) => {
+                    android_sysroot.push(toolchain);
+                    android_sysroot.push("sysroot");
+                    params.push("--sysroot".to_string());
+                    params.push(android_sysroot.into_os_string().into_string().unwrap());
                 }
-            };
-            android_sysroot.push(toolchain);
-            android_sysroot.push("sysroot");
-            params.push("--sysroot".to_string());
-            params.push(android_sysroot.into_os_string().into_string().unwrap());
+                Err(e) => {
+                    println!("cargo:warning=failed to find prebuilt Android NDK toolchain for bindgen: {e}");
+                    // Uh... let's try anyway, I guess?
+                }
+            }
         }
         _ => {}
     }
@@ -504,8 +495,8 @@ fn apply_patch(config: &Config, patch_name: &str) -> io::Result<()> {
 fn run_command(command: &mut Command) -> io::Result<Output> {
     let out = command.output()?;
 
-    println!("{}", std::str::from_utf8(&out.stdout).unwrap());
-    eprintln!("{}", std::str::from_utf8(&out.stderr).unwrap());
+    std::io::stderr().write_all(&out.stderr)?;
+    std::io::stdout().write_all(&out.stdout)?;
 
     if !out.status.success() {
         let err = match out.status.code() {
@@ -678,6 +669,17 @@ fn generate_bindings(config: &Config) {
         builder = builder
             .clang_arg("--sysroot")
             .clang_arg(sysroot.display().to_string());
+
+        let c_target = format!(
+            "{}-{}-{}",
+            &config.target_arch, &config.target_os, &config.target_env
+        );
+
+        // we need to add special platform header file with env for support cross building
+        let header = format!("{}/usr/include/{}", sysroot.display().to_string(), c_target);
+        if PathBuf::from(&header).is_dir() {
+            builder = builder.clang_arg("-I").clang_arg(&header);
+        }
     }
 
     let headers = [

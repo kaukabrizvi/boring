@@ -1203,16 +1203,18 @@ impl SslContextBuilder {
         }
     }
 
-    /// Use [`set_cert_store_builder`] or [`set_cert_store_ref`] instead.
+    /// Replaces the context's certificate store, and keeps it immutable.
     ///
-    /// Replaces the context's certificate store.
+    /// This method allows sharing the `X509Store`, but calls to `cert_store_mut` will panic.
+    ///
+    /// Use [`set_cert_store_builder`] to set a mutable cert store
+    /// (there's no way to have both sharing and mutability).
     #[corresponds(SSL_CTX_set_cert_store)]
-    #[deprecated(note = "Use set_cert_store_builder or set_cert_store_ref instead")]
     pub fn set_cert_store(&mut self, cert_store: X509Store) {
         #[cfg(feature = "rpk")]
         assert!(!self.is_rpk, "This API is not supported for RPK");
 
-        self.has_shared_cert_store = false;
+        self.has_shared_cert_store = true;
         unsafe {
             ffi::SSL_CTX_set_cert_store(self.as_ptr(), cert_store.into_ptr());
         }
@@ -1235,14 +1237,7 @@ impl SslContextBuilder {
     /// This method allows sharing the `X509Store`, but calls to `cert_store_mut` will panic.
     #[corresponds(SSL_CTX_set_cert_store)]
     pub fn set_cert_store_ref(&mut self, cert_store: &X509Store) {
-        #[cfg(feature = "rpk")]
-        assert!(!self.is_rpk, "This API is not supported for RPK");
-
-        self.has_shared_cert_store = true;
-        unsafe {
-            ffi::X509_STORE_up_ref(cert_store.as_ptr());
-            ffi::SSL_CTX_set_cert_store(self.as_ptr(), cert_store.as_ptr());
-        }
+        self.set_cert_store(cert_store.to_owned());
     }
 
     /// Controls read ahead behavior.
@@ -1453,7 +1448,9 @@ impl SslContextBuilder {
         unsafe { cvt(ffi::SSL_CTX_use_PrivateKey(self.as_ptr(), key.as_ptr())).map(|_| ()) }
     }
 
-    /// Sets the list of supported ciphers for protocols before TLSv1.3.
+    /// Sets the list of supported ciphers for protocols before TLSv1.3, ignoring meaningless entries.
+    ///
+    /// See [`SslContextBuilder::set_strict_cipher_list()`].
     ///
     /// The `set_ciphersuites` method controls the cipher suites for TLSv1.3 in OpenSSL.
     /// BoringSSL doesn't implement `set_ciphersuites`.
@@ -1464,9 +1461,31 @@ impl SslContextBuilder {
     /// [`ciphers`]: https://www.openssl.org/docs/manmaster/apps/ciphers.html
     #[corresponds(SSL_CTX_set_cipher_list)]
     pub fn set_cipher_list(&mut self, cipher_list: &str) -> Result<(), ErrorStack> {
-        let cipher_list = CString::new(cipher_list).unwrap();
+        let cipher_list = CString::new(cipher_list).map_err(ErrorStack::internal_error)?;
         unsafe {
             cvt(ffi::SSL_CTX_set_cipher_list(
+                self.as_ptr(),
+                cipher_list.as_ptr() as *const _,
+            ))
+            .map(|_| ())
+        }
+    }
+
+    /// Sets the list of supported ciphers for protocols before TLSv1.3 but do not
+    /// tolerate anything meaningless in the cipher list.
+    ///
+    /// The `set_ciphersuites` method controls the cipher suites for TLSv1.3 in OpenSSL.
+    /// BoringSSL doesn't implement `set_ciphersuites`.
+    /// See <https://github.com/google/boringssl/blob/main/include/openssl/ssl.h#L1685>
+    ///
+    /// See [`ciphers`] for details on the format.
+    ///
+    /// [`ciphers`]: <https://docs.openssl.org/master/man1/openssl-ciphers/>.
+    #[corresponds(SSL_CTX_set_strict_cipher_list)]
+    pub fn set_strict_cipher_list(&mut self, cipher_list: &str) -> Result<(), ErrorStack> {
+        let cipher_list = CString::new(cipher_list).map_err(ErrorStack::internal_error)?;
+        unsafe {
+            cvt(ffi::SSL_CTX_set_strict_cipher_list(
                 self.as_ptr(),
                 cipher_list.as_ptr() as *const _,
             ))
@@ -1750,7 +1769,8 @@ impl SslContextBuilder {
 
         assert!(
             !self.has_shared_cert_store,
-            "Shared X509Store can't be mutated. Make a new store"
+            "Shared X509Store can't be mutated. Use set_cert_store_builder() instead of set_cert_store()
+                or completely finish building the cert store setting it."
         );
         // OTOH, it's not safe to return a shared &X509Store when the builder owns it exclusively
 
@@ -1927,13 +1947,10 @@ impl SslContextBuilder {
     ///
     /// This can be used to provide data to callbacks registered with the context. Use the
     /// `SslContext::new_ex_index` method to create an `Index`.
-    ///
-    /// Note that if this method is called multiple times with the same index, any previous
-    /// value stored in the `SslContextBuilder` will be leaked.
     #[corresponds(SSL_CTX_set_ex_data)]
     pub fn set_ex_data<T>(&mut self, index: Index<SslContext, T>, data: T) {
         unsafe {
-            self.ctx.set_ex_data(index, data);
+            self.ctx.replace_ex_data(index, data);
         }
     }
 
