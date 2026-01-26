@@ -79,7 +79,7 @@ foreign_type_and_impl_send_sync! {
 impl CipherCtxRef {
     /// Configures CipherCtx for a fresh encryption operation using `cipher`.
     ///
-    /// https://commondatastorage.googleapis.com/chromium-boringssl-docs/cipher.h.html#EVP_EncryptInit_ex
+    #[corresponds(EVP_EncryptInit_ex)]
     pub fn init_encrypt(
         &mut self,
         cipher: &Cipher,
@@ -101,13 +101,12 @@ impl CipherCtxRef {
                 key.as_ptr(),
                 iv.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 
     /// Configures CipherCtx for a fresh decryption operation using `cipher`.
     ///
-    /// https://commondatastorage.googleapis.com/chromium-boringssl-docs/cipher.h.html#EVP_DecryptInit_ex
+    #[corresponds(EVP_DecryptInit_ex)]
     pub fn init_decrypt(
         &mut self,
         cipher: &Cipher,
@@ -129,7 +128,6 @@ impl CipherCtxRef {
                 key.as_ptr(),
                 iv.as_ptr(),
             ))
-            .map(|_| ())
         }
     }
 }
@@ -472,7 +470,6 @@ impl Crypter {
                 tag.len() as c_int,
                 tag.as_ptr() as *mut _,
             ))
-            .map(|_| ())
         }
     }
 
@@ -490,7 +487,6 @@ impl Crypter {
                 tag_len as c_int,
                 ptr::null_mut(),
             ))
-            .map(|_| ())
         }
     }
 
@@ -509,7 +505,6 @@ impl Crypter {
                 ptr::null_mut(),
                 data_len as c_int,
             ))
-            .map(|_| ())
         }
     }
 
@@ -529,7 +524,6 @@ impl Crypter {
                 input.as_ptr(),
                 input.len() as c_int,
             ))
-            .map(|_| ())
         }
     }
 
@@ -616,7 +610,6 @@ impl Crypter {
                 tag.len() as c_int,
                 tag.as_mut_ptr() as *mut _,
             ))
-            .map(|_| ())
         }
     }
 }
