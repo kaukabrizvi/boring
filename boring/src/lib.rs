@@ -137,6 +137,7 @@ pub mod hash;
 pub mod hmac;
 pub mod hpke;
 pub mod memcmp;
+pub mod mlkem;
 pub mod nid;
 pub mod pkcs12;
 pub mod pkcs5;
@@ -200,6 +201,15 @@ fn cvt_n(r: c_int) -> Result<c_int, ErrorStack> {
     }
 }
 
+fn try_int<F, T>(from: F) -> Result<T, ErrorStack>
+where
+    F: TryInto<T> + Send + Sync + Copy + 'static,
+    T: Send + Sync + Copy + 'static,
+{
+    from.try_into()
+        .map_err(|_| ErrorStack::internal_error_str("int overflow"))
+}
+
 unsafe extern "C" fn free_data_box<T>(
     _parent: *mut c_void,
     ptr: *mut c_void,
@@ -209,6 +219,6 @@ unsafe extern "C" fn free_data_box<T>(
     _argp: *mut c_void,
 ) {
     if !ptr.is_null() {
-        drop(Box::<T>::from_raw(ptr as *mut T));
+        drop(Box::<T>::from_raw(ptr.cast::<T>()));
     }
 }

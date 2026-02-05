@@ -15,7 +15,6 @@
 //! [`EcGroup`]: struct.EcGroup.html
 //! [`Nid`]: ../nid/struct.Nid.html
 //! [Eliptic Curve Cryptography]: https://wiki.openssl.org/index.php/Elliptic_Curve_Cryptography
-use crate::ffi;
 use foreign_types::{ForeignType, ForeignTypeRef};
 use libc::c_int;
 use openssl_macros::corresponds;
@@ -24,8 +23,10 @@ use std::ptr;
 
 use crate::bn::{BigNumContextRef, BigNumRef};
 use crate::error::ErrorStack;
+use crate::ffi;
 use crate::nid::Nid;
 use crate::pkey::{HasParams, HasPrivate, HasPublic, Params, Private, Public};
+use crate::try_int;
 use crate::{cvt, cvt_n, cvt_p, init};
 
 /// Compressed or Uncompressed conversion
@@ -183,7 +184,7 @@ impl EcGroupRef {
     pub fn generator(&self) -> &EcPointRef {
         unsafe {
             let ptr = ffi::EC_GROUP_get0_generator(self.as_ptr());
-            EcPointRef::from_ptr(ptr as *mut _)
+            EcPointRef::from_ptr(ptr.cast_mut())
         }
     }
 
@@ -497,7 +498,7 @@ where
     pub fn private_key(&self) -> &BigNumRef {
         unsafe {
             let ptr = ffi::EC_KEY_get0_private_key(self.as_ptr());
-            BigNumRef::from_ptr(ptr as *mut _)
+            BigNumRef::from_ptr(ptr.cast_mut())
         }
     }
 }
@@ -512,7 +513,7 @@ where
     pub fn public_key(&self) -> &EcPointRef {
         unsafe {
             let ptr = ffi::EC_KEY_get0_public_key(self.as_ptr());
-            EcPointRef::from_ptr(ptr as *mut _)
+            EcPointRef::from_ptr(ptr.cast_mut())
         }
     }
 
@@ -543,7 +544,7 @@ where
     pub fn group(&self) -> &EcGroupRef {
         unsafe {
             let ptr = ffi::EC_KEY_get0_group(self.as_ptr());
-            EcGroupRef::from_ptr(ptr as *mut _)
+            EcGroupRef::from_ptr(ptr.cast_mut())
         }
     }
 

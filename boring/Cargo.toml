@@ -10,7 +10,7 @@ readme = "README.md"
 keywords = ["crypto", "tls", "ssl", "dtls"]
 categories = ["cryptography", "api-bindings"]
 edition = { workspace = true }
-rust-version = "1.80"
+rust-version = { workspace = true }
 
 [package.metadata.docs.rs]
 features = ["rpk", "underscore-wildcards"]
@@ -24,6 +24,10 @@ fips = ["boring-sys/fips"]
 
 # **DO NOT USE** This will be removed without warning in future releases.
 legacy-compat-deprecated = []
+
+# **DO NOT USE** This will be removed without warning in future releases.
+# PQ is always enabled. This feature is a no-op, only for backwards compatibility.
+pq-experimental = []
 
 # Enables Raw public key API (https://datatracker.ietf.org/doc/html/rfc7250)
 # This feature is necessary in order to compile the bindings for the
