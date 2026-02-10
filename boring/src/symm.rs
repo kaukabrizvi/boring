@@ -145,7 +145,7 @@ impl Cipher {
     #[corresponds(EVP_get_cipherbynid)]
     #[must_use]
     pub fn from_nid(nid: Nid) -> Option<Cipher> {
-        let ptr = unsafe { ffi::EVP_get_cipherbyname(ffi::OBJ_nid2sn(nid.as_raw())) };
+        let ptr = unsafe { ffi::EVP_get_cipherbynid(nid.as_raw()) };
         if ptr.is_null() {
             None
         } else {
@@ -1044,6 +1044,9 @@ mod tests {
     #[test]
     fn test_nid_roundtrip() {
         for cipher in [
+            Cipher::aes_128_gcm(),
+            Cipher::aes_192_gcm(),
+            Cipher::aes_256_gcm(),
             Cipher::aes_128_ecb(),
             Cipher::aes_128_cbc(),
             Cipher::aes_128_ctr(),
@@ -1061,16 +1064,105 @@ mod tests {
             Cipher::des_cbc(),
             Cipher::rc4(),
         ] {
-            assert_eq!(Cipher::from_nid(cipher.nid()), Some(cipher));
+            let name = cipher.nid().short_name().unwrap_or("unknown");
+            assert_eq!(Cipher::from_nid(cipher.nid()), Some(cipher), "{}", name);
         }
 
-        for cipher in [
-            Cipher::aes_128_gcm(),
-            Cipher::aes_192_gcm(),
-            Cipher::aes_256_gcm(),
-            Cipher::des_ede3(),
+        assert_eq!(Cipher::from_nid(Cipher::des_ede3().nid()), None);
+    }
+
+    // Make sure the NIDs don't actually change upstream.
+    #[test]
+    fn test_nid_regression() {
+        struct TestCase {
+            cipher: Cipher,
+            nid: c_int,
+        }
+
+        for t in [
+            TestCase {
+                cipher: Cipher::aes_128_ecb(),
+                nid: 418,
+            },
+            TestCase {
+                cipher: Cipher::aes_128_cbc(),
+                nid: 419,
+            },
+            TestCase {
+                cipher: Cipher::aes_128_ctr(),
+                nid: 904,
+            },
+            TestCase {
+                cipher: Cipher::aes_128_gcm(),
+                nid: 895,
+            },
+            TestCase {
+                cipher: Cipher::aes_128_ofb(),
+                nid: 420,
+            },
+            TestCase {
+                cipher: Cipher::aes_192_ecb(),
+                nid: 422,
+            },
+            TestCase {
+                cipher: Cipher::aes_192_cbc(),
+                nid: 423,
+            },
+            TestCase {
+                cipher: Cipher::aes_192_ctr(),
+                nid: 905,
+            },
+            TestCase {
+                cipher: Cipher::aes_192_gcm(),
+                nid: 898,
+            },
+            TestCase {
+                cipher: Cipher::aes_192_ofb(),
+                nid: 424,
+            },
+            TestCase {
+                cipher: Cipher::aes_256_ecb(),
+                nid: 426,
+            },
+            TestCase {
+                cipher: Cipher::aes_256_cbc(),
+                nid: 427,
+            },
+            TestCase {
+                cipher: Cipher::aes_256_ctr(),
+                nid: 906,
+            },
+            TestCase {
+                cipher: Cipher::aes_256_gcm(),
+                nid: 901,
+            },
+            TestCase {
+                cipher: Cipher::aes_256_ofb(),
+                nid: 428,
+            },
+            TestCase {
+                cipher: Cipher::des_ecb(),
+                nid: 29,
+            },
+            TestCase {
+                cipher: Cipher::des_ede3_cbc(),
+                nid: 44,
+            },
+            TestCase {
+                cipher: Cipher::des_cbc(),
+                nid: 31,
+            },
+            TestCase {
+                cipher: Cipher::rc4(),
+                nid: 5,
+            },
+            TestCase {
+                cipher: Cipher::des_ede3(),
+                nid: 33,
+            },
         ] {
-            assert_eq!(Cipher::from_nid(cipher.nid()), None);
+            let name = t.cipher.nid().short_name().unwrap_or("unknown");
+            assert_eq!(t.cipher.nid().as_raw(), t.nid, "{}", name);
         }
     }
 }
