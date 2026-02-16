@@ -219,7 +219,11 @@ fn get_boringssl_cmake_config(config: &Config) -> cmake::Config {
         // This is required now because newest BoringSSL requires CMake 3.22 which
         // uses the new logic with CMAKE_MSVC_RUNTIME_LIBRARY introduced in CMake 3.15.
         // https://github.com/rust-lang/cmake-rs/pull/30#issuecomment-2969758499
-        boringssl_cmake.define("CMAKE_MSVC_RUNTIME_LIBRARY", "MultiThreadedDLL");
+        if config.target_features.iter().any(|f| f == "crt-static") {
+            boringssl_cmake.define("CMAKE_MSVC_RUNTIME_LIBRARY", "MultiThreaded");
+        } else {
+            boringssl_cmake.define("CMAKE_MSVC_RUNTIME_LIBRARY", "MultiThreadedDLL");
+        }
     }
 
     if config.host == config.target {
@@ -720,7 +724,7 @@ fn generate_bindings(config: &Config) {
         }
     }
 
-    let headers = [
+    let must_have_headers = [
         "aes.h",
         "asn1_mac.h",
         "asn1t.h",
@@ -736,6 +740,12 @@ fn generate_bindings(config: &Config) {
         "err.h",
         "hkdf.h",
         "hpke.h",
+        "ossl_typ.h",
+        "pkcs12.h",
+        "poly1305.h",
+        "x509v3.h",
+    ];
+    let headers = [
         "hmac.h",
         "hrss.h",
         "md4.h",
@@ -744,26 +754,25 @@ fn generate_bindings(config: &Config) {
         "obj_mac.h",
         "objects.h",
         "opensslv.h",
-        "ossl_typ.h",
-        "pkcs12.h",
-        "poly1305.h",
         "rand.h",
         "rc4.h",
         "ripemd.h",
         "siphash.h",
         "srtp.h",
         "trust_token.h",
-        "x509v3.h",
     ];
-    for header in &headers {
+    for (i, header) in must_have_headers.into_iter().chain(headers).enumerate() {
         let header_path = include_path.join("openssl").join(header);
-        assert!(
-            header_path.exists(),
-            "{} is missing. Is {} correct? run `cargo clean`",
-            header_path.display(),
-            include_path.display()
-        );
-        builder = builder.header(header_path.to_str().unwrap());
+        if header_path.exists() {
+            builder = builder.header(header_path.to_str().unwrap());
+        } else {
+            let err = format!("'openssl/{header}' is missing from '{}'. The include path may be incorrect or contain an outdated version of OpenSSL/BoringSSL", include_path.display());
+            let required = i < must_have_headers.len();
+            println!(
+                "cargo::{}={err}",
+                if required { "error" } else { "warning" }
+            );
+        }
     }
 
     let bindings = builder.generate().expect("Unable to generate bindings");
