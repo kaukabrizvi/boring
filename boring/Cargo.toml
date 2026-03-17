@@ -51,6 +51,10 @@ underscore-wildcards = ["boring-sys/underscore-wildcards"]
 # Enable symbol prefixing in the underlying BoringSSL build (for s2n tests).
 prefix-symbols = ["boring-sys/prefix-symbols"]
 
+# **DO NOT USE** This will be removed without warning in future releases.
+# Alias for 'fips', only for backwards compatibility.
+fips-precompiled = ["fips"]
+
 [dependencies]
 bitflags = { workspace = true }
 foreign-types = { workspace = true }
