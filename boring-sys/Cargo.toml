@@ -79,6 +79,16 @@ underscore-wildcards = []
 # with other OpenSSL/BoringSSL versions in the same process.
 prefix-symbols = []
 
+# Restores the historical BoringSSL default of not enforcing RSA keyUsage
+# during TLS handshakes. BoringSSL starting with `BORINGSSL_API_VERSION`
+# 19 (see `include/openssl/base.h`) changed `enforce_rsa_key_usage` to
+# `true`, making a client-side RSA leaf whose keyUsage does not include the
+# bit required by the negotiated cipher suite a fatal handshake error
+# (KEY_USAGE_BIT_INCORRECT). Enabling this feature applies a build-time
+# patch that sets the default back to `false`, so RSA keyUsage mismatches
+# are non-fatal. Non-RSA keyUsage enforcement is unaffected.
+relax-cert-validation = []
+
 [build-dependencies]
 bindgen = { workspace = true }
 cmake = { workspace = true }

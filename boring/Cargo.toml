@@ -13,7 +13,7 @@ edition = { workspace = true }
 rust-version = { workspace = true }
 
 [package.metadata.docs.rs]
-features = ["rpk", "underscore-wildcards"]
+features = ["rpk", "underscore-wildcards", "mlkem", "mldsa"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
@@ -31,6 +31,8 @@ pq-experimental = []
 
 # Interface for ML-KEM (FIPS 203) post-quantum key encapsulation. Does not affect ciphers used in TLS.
 mlkem = []
+# ML-DSA (FIPS 204) post-quantum digital signature.
+mldsa = []
 
 # Expose internal `tls1_prf`
 prf = []
@@ -53,6 +55,10 @@ rpk = ["credential", "boring-sys/rpk"]
 underscore-wildcards = ["boring-sys/underscore-wildcards"]
 # Enable symbol prefixing in the underlying BoringSSL build (for s2n tests).
 prefix-symbols = ["boring-sys/prefix-symbols"]
+
+# Restores the historical BoringSSL default of not enforcing RSA keyUsage
+# during TLS handshakes.
+relax-cert-validation = ["boring-sys/relax-cert-validation"]
 
 # **DO NOT USE** This will be removed without warning in future releases.
 # Alias for 'fips', only for backwards compatibility.
